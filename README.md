@@ -5,7 +5,7 @@
 
 Stick checkpoint dir in Models/Checkpoint?
 
-> ![WARNING]
+> [!WARNING]
 > If Models not detected in path (vscode), add this to settings.json: ```{
     "python.analysis.extraPaths": [
         "./Models"
