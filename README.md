@@ -11,3 +11,5 @@ Stick checkpoint dir in Models/Checkpoint?
         "./Models"
     ]
 }```
+
+[Paper URL](https://jfin-swufe.springeropen.com/articles/10.1186/s40854-024-00643-1)
