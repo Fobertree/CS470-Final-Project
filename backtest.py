@@ -2,6 +2,7 @@ from backtesting import Backtest, Strategy
 from backtesting.test import BTCUSD
 import numpy as np
 
+data = BTCUSD.copy()
 
 def get_X(data):
     """Return model design matrix X"""
@@ -31,7 +32,7 @@ def get_clean_Xy(df):
 class BuyLowSellHigh(Strategy):
     def __init__(self, N_TRAIN = 300):
         self.clf = None # TODO: replace with actual classifier
-        
+
 
 
 if __name__ == "__main__":
