@@ -1,4 +1,3 @@
 torch
 backtesting
 python-dotenv
-polygon
