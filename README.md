@@ -13,3 +13,7 @@ Stick checkpoint dir in Models/Checkpoint?
 }```
 
 [Paper URL](https://jfin-swufe.springeropen.com/articles/10.1186/s40854-024-00643-1)
+
+[Other paper i found](https://arxiv.org/pdf/1611.06455)
+
+[PyTorch Lightning?](https://en.wikipedia.org/wiki/PyTorch_Lightning)
