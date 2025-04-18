@@ -3,10 +3,10 @@ from sklearn.preprocessing import MinMaxScaler
 import os
 
 def get_tkr_data(tkr, period='6mo', norm=False, csv_path=None):
-    df = yf.download(tkr, period=period)["Close"]
+    df = yf.download(tkr, period=period)
 
     if csv_path:
-        os.makedirs(os.path.dirname(csv_path), exist_ok=True)  
+        # os.makedirs(os.path.dirname(csv_path), exist_ok=True)  
         df.to_csv(csv_path)
 
     if norm:

@@ -36,6 +36,8 @@ class CNNLSTM(nn.Module):
         z = self.avg_pool(z)
         z = self.dropout(z)
 
+        # permute used to reshape before LSTM (reorder)
+        # [batch_size, feature_size, sequence_length] -> [batch_size, sequence_length, feature_size]
         z = z.permute(0, 2, 1)
         z, _ = self.lstm1(z)
         z = self.tanh(z)
@@ -78,10 +80,10 @@ class CNNLSTM(nn.Module):
 if __name__ == "__main__":
     cnnlstm = CNNLSTM()
     
-    for name, param in cnnlstm.named_parameters():
-        print(name, param.data)
+    # for name, param in cnnlstm.named_parameters():
+    #     print(name, param.data)
 
-    print(cnnlstm.state_dict())
+    # print(cnnlstm.state_dict())
 
     from torchsummary import summary
     summary(cnnlstm, (26, 100))

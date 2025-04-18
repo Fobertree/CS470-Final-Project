@@ -3,3 +3,4 @@ backtesting
 python-dotenv
 torch
 torch-summary
+ta

@@ -17,3 +17,5 @@ Stick checkpoint dir in Models/Checkpoint?
 [Other paper i found](https://arxiv.org/pdf/1611.06455)
 
 [PyTorch Lightning?](https://en.wikipedia.org/wiki/PyTorch_Lightning)
+
+[Scikit Feature Selection](https://scikit-learn.org/stable/modules/feature_selection.html)
