@@ -8,20 +8,20 @@ class CNNLSTM(nn.Module):
 
         # input tensor: 26 x 1?
         self.conv1 = nn.Conv1d(in_channels = in_channels, out_channels= 64, kernel_size= 3)
-        
         self.relu = nn.ReLU()
         self.tanh = nn.Tanh()
         self.sigmoid = nn.Sigmoid()
 
-        self.batch_norm1 = nn.BatchNorm2d(64) 
+        self.batch_norm1 = nn.BatchNorm1d(64)
         self.avg_pool = nn.AvgPool1d(64)
         # if we have time, we can separate dropouts and treat droppout rate as hyperparameter
         self.dropout = nn.Dropout1d()
 
-        self.lstm1 = nn.LSTM(64, 512, 1, True)
+        # 4x because 4 gates: input gate, output gate, cell gate, forget gate
+        self.lstm1 = nn.LSTM(64, 128, 1, True)
         self.batch_norm2 = nn.BatchNorm1d(128)
 
-        self.lstm2 = nn.LSTM(128, 320, 1, True)
+        self.lstm2 = nn.LSTM(128, 80, 1, True)
         self.batch_norm3 = nn.BatchNorm1d(80)
         self.dense = nn.Linear(80, 1) # 1 output: binary
 
@@ -35,14 +35,23 @@ class CNNLSTM(nn.Module):
         z = self.batch_norm1(z)
         z = self.avg_pool(z)
         z = self.dropout(z)
+
+        z = z.permute(0, 2, 1)
         z, _ = self.lstm1(z)
         z = self.tanh(z)
+
+        z = z[:, -1, :]
         z = self.batch_norm2(z)
         z = self.dropout(z)
+
+        z = z.unsqueeze(1)
         z, _ = self.lstm2(z)
         z = self.tanh(z)
+
+        z = z[:, -1, :]
         z = self.batch_norm3(z)
         z = self.dropout(z)
+        
         z - self.dense(z)
         z = self.sigmoid(z)
         return z
@@ -58,14 +67,13 @@ class CNNLSTM(nn.Module):
         # todo: init weight for lstm
         for lstm in [self.lstm1, self.lstm2]:
             # xavier bc lstm uses tanh activation
-            nn.init.xavier_uniform_(lstm.weight_ih, gain=1)
-            nn.init.xavier_uniform_(lstm.weight_hh, gain=1)
-            nn.init.xavier_uniform_(lstm.fc.weight, gain=1)
-
-            # bias to 0.0
-            nn.init.constant_(lstm.bias_ih, 0.0)
-            nn.init.constant_(lstm.bias_hh, 0.0)
-            nn.init.constant_(lstm.fc.bias, 0.0)
+            for name, param in lstm.named_parameters():
+                if 'weight_ih' in name:
+                    nn.init.xavier_uniform_(param.data)
+                elif 'weight_hh' in name:
+                    nn.init.xavier_uniform_(param.data)
+                elif 'bias' in name:
+                    nn.init.constant_(param.data, 0.0)
 
 if __name__ == "__main__":
     cnnlstm = CNNLSTM()
@@ -76,4 +84,4 @@ if __name__ == "__main__":
     print(cnnlstm.state_dict())
 
     from torchsummary import summary
-    summary(cnnlstm, (26,))
+    summary(cnnlstm, (26, 100))
