@@ -32,6 +32,12 @@ class CNNLSTM(nn.Module):
         '''
         https://machinelearningmastery.com/lstm-for-time-series-prediction-in-pytorch/
         '''
+        # INPUT DIMS: (batch_size, channels, features)
+        # [samples/batch size, timesteps, features]
+        # channels should be # of features in feature vec
+        # features for time series case: look-back window in timeseries?
+        # expects [batch size, num features, time]
+        # print(input.shape)
         z = self.conv1(input)
         z = self.relu(z)
         z = self.batch_norm1(z)
@@ -41,17 +47,21 @@ class CNNLSTM(nn.Module):
         # permute used to reshape before LSTM (reorder)
         # [batch_size, feature_size, sequence_length] -> [batch_size, sequence_length, feature_size]
         z = z.permute(0, 2, 1)
+        # lstm returns output, (hn: final hidden state, low bar, cn: internel cell state, top bar)
         z, _ = self.lstm1(z)
         z = self.tanh(z)
 
+        # get last timestep
         z = z[:, -1, :]
         z = self.batch_norm2(z)
         z = self.dropout(z)
 
+        # add extra dim in 1 in prep for lstm
         z = z.unsqueeze(1)
         z, _ = self.lstm2(z)
         z = self.tanh(z)
 
+        # get last timestep
         z = z[:, -1, :]
         z = self.batch_norm3(z)
         z = self.dropout(z)
@@ -79,6 +89,15 @@ class CNNLSTM(nn.Module):
                 elif 'bias' in name:
                     nn.init.constant_(param.data, 0.0)
 
+# Utility to create proper 3D tensor for CNNLSTM: time-lagged sliding windows
+# Worry: this could maybe leak into testing?
+def create_sliding_windows(X, window_size):
+    sequences = []
+    for i in range(len(X) - window_size + 1):
+        seq = X[i:i+window_size]
+        sequences.append(seq)
+    return torch.stack(sequences)
+
 if __name__ == "__main__":
     cnnlstm = CNNLSTM()
     
@@ -98,9 +117,14 @@ if __name__ == "__main__":
     criterion = nn.BCELoss()  # binary cross-entropy
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
-    # NOT RIGHT SHAPE
-    X = torch.randn(16, 26, 100)         # (B, C, T) format for Conv1D
-    y = torch.randint(0, 2, (16, 1)).float()  # binary labels as floats
+    # Must be T (lag timesteps) >= 66 for some reason 
+    # X = torch.randn(16, 26, 100)         # (B, C, T) format for Conv1D
+    X = torch.randn(363, 26)
+    window_size = 100
+    # WE ARE AT RISK OF LEAKAGE HERE B/T TRAIN TEST. TODO: FIGURE OUT WTF TO DO BC ADDING A GAP DOES NOT SEEM OPTIMAL
+    # TimeSeriesSplit? https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.TimeSeriesSplit.html
+    X = create_sliding_windows(X, window_size).permute(0,2,1) #permute spaghetti here so the cnn can take it in
+    y = torch.randint(0, 2, (363 - window_size + 1, 1)).float()  # binary labels as floats
 
     # Create DataLoader
     full_dataset = TensorDataset(X, y)
