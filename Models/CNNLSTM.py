@@ -122,7 +122,7 @@ if __name__ == "__main__":
     model = CNNLSTM(in_channels=15)  # 15 features, 100 timesteps
 
     criterion = nn.BCELoss()  # binary cross-entropy
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = optim.Adam(model.parameters(), lr=1e-9)
 
     # Must be T (lag timesteps) >= 66 for some reason 
     # X = torch.randn(16, 26, 100)         # (B, C, T) format for Conv1D
@@ -167,7 +167,7 @@ if __name__ == "__main__":
     test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=True, drop_last=True)
 
     # Training loop: 50 - 100
-    for epoch in range(20):
+    for epoch in range(100):
         model.train()
         running_loss = 0
         for batch_X, batch_y in train_loader:
