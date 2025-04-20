@@ -14,7 +14,7 @@ rf = RandomForestClassifier()
 
 if __name__ == "__main__":
     # arr = np.array()  # PLACEHOLDER
-    X, y, feature_names = generate_features(k=15)
+    X, y, feature_names = generate_features(k=10)
     # X, y = arr[:, :-1], arr[:, -1]
 
     # Create time series splits

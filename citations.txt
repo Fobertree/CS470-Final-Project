@@ -1,0 +1,9 @@
+Omole, Enke: https://jfin-swufe.springeropen.com/articles/10.1186/s40854-024-00643-1
+
+Wang, Yan, Oates: https://arxiv.org/pdf/1611.06455
+
+Valle, Bruno: https://www.sciencedirect.com/science/article/abs/pii/S0960077925000475
+
+LSTM: https://colah.github.io/posts/2015-08-Understanding-LSTMs/
+
+C-reg param (Sklearn): https://scikit-learn.org/stable/auto_examples/svm/plot_svm_scale_c.html#sphx-glr-auto-examples-svm-plot-svm-scale-c-py

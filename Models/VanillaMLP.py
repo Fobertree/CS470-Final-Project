@@ -71,6 +71,10 @@ if __name__ == "__main__":
     from torchsummary import summary
     summary(mlp, (IN_CHANNELS,))
 
+    import os
+    print(os.listdir())
+    input("OK")
+
     criterion = nn.BCELoss()  # binary cross-entropy
     optimizer = optim.Adam(mlp.parameters(), lr=1e-2)
 
@@ -218,7 +222,8 @@ if __name__ == "__main__":
     plt.legend()
 
     plt.tight_layout()
-    plt.show()
+    # plt.show()
+    plt.savefig(os.path.join("./Models/Plots", "acc_mlp.png"))
 
     input("OK")
 

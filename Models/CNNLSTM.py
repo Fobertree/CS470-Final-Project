@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader, TensorDataset, random_split
 import matplotlib.pyplot as plt
 from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score, roc_curve
 from feature_gen import generate_features
+from torcheval.metrics import MulticlassConfusionMatrix
 
 class CNNLSTM(nn.Module):
     def __init__(self, in_channels = 26):
@@ -101,6 +102,10 @@ def create_sliding_windows(X, window_size):
         sequences.append(seq)
     return torch.stack(sequences)
 
+def print_cnts(tensor):
+        print(torch.bincount(tensor.squeeze().long()))
+
+
 if __name__ == "__main__":
     train_losses = []
     test_losses = []
@@ -122,7 +127,7 @@ if __name__ == "__main__":
     model = CNNLSTM(in_channels=15)  # 15 features, 100 timesteps
 
     criterion = nn.BCELoss()  # binary cross-entropy
-    optimizer = optim.Adam(model.parameters(), lr=1e-9)
+    optimizer = optim.Adam(model.parameters(), lr=1e-5)
 
     # Must be T (lag timesteps) >= 66 for some reason 
     # X = torch.randn(16, 26, 100)         # (B, C, T) format for Conv1D
@@ -146,18 +151,20 @@ if __name__ == "__main__":
     test_X = create_sliding_windows(test_raw, window_size).permute(0,2,1)
 
     train_y = y[:split_idx-window_size+1]
-    test_y = y[split_idx - window_size+1:]
+    test_y = y[split_idx - 1:] #- window + window cancels out
+
+    print_cnts(test_y)
 
     # X = create_sliding_windows(X, window_size).permute(0,2,1) #permute spaghetti here so the cnn can take it in
     # y = torch.randint(0, 2, (363 - window_size + 1, 1)).float()  # binary labels as floats
 
-    # Create DataLoader
-    full_dataset = TensorDataset(train_X,train_y)
-    # holdout, since kfold doesn't work here
-    holdout_size = int(0.2 * len(full_dataset)) # test holdout
-    train_size = len(full_dataset) - holdout_size
+    print(train_X.shape, train_y.shape)
+    print(test_X.shape, test_y.shape)
 
-    train_dataset, test_dataset = random_split(full_dataset, [train_size, holdout_size])
+    train_dataset = TensorDataset(train_X, train_y)
+    test_dataset = TensorDataset(test_X, test_y)
+
+    import os
 
     # loaders
     BATCH_SIZE = 3
@@ -253,6 +260,13 @@ if __name__ == "__main__":
     print(f"F1 Score: {f1:.4f}")
     print(f"AUROC: {auroc:.4f}")
 
+    conf_matrix = MulticlassConfusionMatrix(num_classes=2)
+    import numpy as np
+    all_preds_tensor = np.array(all_preds, dtype=np.int64)
+    all_targets_tensor = np.array(all_targets, dtype=np.int64)
+    conf_matrix.update(torch.LongTensor(all_preds_tensor), torch.LongTensor(all_targets_tensor))
+    print(conf_matrix.compute())
+
     epochs = range(1, len(train_losses)+1)
 
     plt.figure(figsize=(12, 5))
@@ -276,7 +290,9 @@ if __name__ == "__main__":
     plt.legend()
 
     plt.tight_layout()
-    plt.show()
+    plt.savefig(os.path.join("./Models/Plots", "acc_cnnlstm.png"))
+
+    # plt.show()
 
     input("OK")
 
