@@ -32,6 +32,12 @@ class CNNLSTM(nn.Module):
         '''
         https://machinelearningmastery.com/lstm-for-time-series-prediction-in-pytorch/
         '''
+        # INPUT DIMS: (batch_size, channels, features)
+        # [samples/batch size, timesteps, features]
+        # channels should be # of features in feature vec
+        # features for time series case: look-back window in timeseries?
+        # expects [batch size, num features, time]
+        # print(input.shape)
         z = self.conv1(input)
         z = self.relu(z)
         z = self.batch_norm1(z)
@@ -41,17 +47,21 @@ class CNNLSTM(nn.Module):
         # permute used to reshape before LSTM (reorder)
         # [batch_size, feature_size, sequence_length] -> [batch_size, sequence_length, feature_size]
         z = z.permute(0, 2, 1)
+        # lstm returns output, (hn: final hidden state, low bar, cn: internel cell state, top bar)
         z, _ = self.lstm1(z)
         z = self.tanh(z)
 
+        # get last timestep
         z = z[:, -1, :]
         z = self.batch_norm2(z)
         z = self.dropout(z)
 
+        # add extra dim in 1 in prep for lstm
         z = z.unsqueeze(1)
         z, _ = self.lstm2(z)
         z = self.tanh(z)
 
+        # get last timestep
         z = z[:, -1, :]
         z = self.batch_norm3(z)
         z = self.dropout(z)
@@ -79,6 +89,15 @@ class CNNLSTM(nn.Module):
                 elif 'bias' in name:
                     nn.init.constant_(param.data, 0.0)
 
+# Utility to create proper 3D tensor for CNNLSTM: time-lagged sliding windows
+# Worry: this could maybe leak into testing?
+def create_sliding_windows(X, window_size):
+    sequences = []
+    for i in range(len(X) - window_size + 1):
+        seq = X[i:i+window_size]
+        sequences.append(seq)
+    return torch.stack(sequences)
+
 if __name__ == "__main__":
     cnnlstm = CNNLSTM()
     
@@ -98,19 +117,41 @@ if __name__ == "__main__":
     criterion = nn.BCELoss()  # binary cross-entropy
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
-    # NOT RIGHT SHAPE
-    X = torch.randn(16, 26, 100)         # (B, C, T) format for Conv1D
-    y = torch.randint(0, 2, (16, 1)).float()  # binary labels as floats
+    # Must be T (lag timesteps) >= 66 for some reason 
+    # X = torch.randn(16, 26, 100)         # (B, C, T) format for Conv1D
+    window_size = 100
+    X = torch.randn(363, 26)
+    y = torch.randint(0, 2, (363, 1)).float()  # binary labels as floats
+
+    # Prevent leakage by splitting first BEFORE generating sliding window tensors
+    # TimeSeriesSplit? https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.TimeSeriesSplit.html
+    split_idx = int(0.8 * len(X))
+    train_raw = X[:split_idx]
+    test_raw = X[split_idx - window_size:]
+
+    train_X = create_sliding_windows(train_raw, window_size).permute(0,2,1)
+    test_X = create_sliding_windows(test_raw, window_size).permute(0,2,1)
+
+    train_y = y[:split_idx-window_size+1]
+    test_y = y[split_idx - window_size+1:]
+
+    # X = create_sliding_windows(X, window_size).permute(0,2,1) #permute spaghetti here so the cnn can take it in
+    # y = torch.randint(0, 2, (363 - window_size + 1, 1)).float()  # binary labels as floats
 
     # Create DataLoader
     full_dataset = TensorDataset(X, y)
+    print(train_X.shape, train_y.shape)
 
+    full_dataset = TensorDataset(train_X,train_y)
     # holdout, since kfold doesn't work here
     holdout_size = int(0.2 * len(full_dataset)) # test holdout
     train_size = len(full_dataset) - holdout_size
 
     train_dataset, test_dataset = random_split(full_dataset, [train_size, holdout_size])
     
+    #TMP
+    # train_dataset = train_X
+
     # loaders
     BATCH_SIZE = 3
     # drop last because if not perfect divisibility improperly mismatched sample split will result in crash
@@ -118,7 +159,7 @@ if __name__ == "__main__":
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, drop_last= True)
     test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=True, drop_last=True)
 
-    # Training loop
+    # Training loop: 50 - 100
     for epoch in range(20):
         model.train()
         for batch_X, batch_y in train_loader:
