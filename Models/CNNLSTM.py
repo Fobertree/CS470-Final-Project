@@ -116,15 +116,20 @@ if __name__ == "__main__":
     # model = CNNLSTM(in_channels=26)
     model = CNNLSTM(in_channels=15)  # 15 features, 100 timesteps
 
-
     criterion = nn.BCELoss()  # binary cross-entropy
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
     # Must be T (lag timesteps) >= 66 for some reason 
     # X = torch.randn(16, 26, 100)         # (B, C, T) format for Conv1D
     window_size = 100
-    X = torch.randn(363, 26)
-    y = torch.randint(0, 2, (363, 1)).float()  # binary labels as floats
+    # X = torch.randn(363, 26)
+    # y = torch.randint(0, 2, (363, 1)).float()  # binary labels as floats
+    X_np, y_np, feature_names = generate_features(k=15)
+    X_tensor = torch.from_numpy(X_np)
+    y_tensor = torch.from_numpy(y_np)
+
+    X = X_tensor
+    y = y_tensor
 
     # Prevent leakage by splitting first BEFORE generating sliding window tensors
     # TimeSeriesSplit? https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.TimeSeriesSplit.html
