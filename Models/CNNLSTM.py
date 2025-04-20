@@ -122,30 +122,39 @@ if __name__ == "__main__":
 
     # Must be T (lag timesteps) >= 66 for some reason 
     # X = torch.randn(16, 26, 100)         # (B, C, T) format for Conv1D
-    # X = torch.randn(363, 26)
     window_size = 100
-    # WE ARE AT RISK OF LEAKAGE HERE B/T TRAIN TEST. TODO: FIGURE OUT WTF TO DO BC ADDING A GAP DOES NOT SEEM OPTIMAL
+    X = torch.randn(363, 26)
+    y = torch.randint(0, 2, (363, 1)).float()  # binary labels as floats
+
+    # Prevent leakage by splitting first BEFORE generating sliding window tensors
     # TimeSeriesSplit? https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.TimeSeriesSplit.html
+    split_idx = int(0.8 * len(X))
+    train_raw = X[:split_idx]
+    test_raw = X[split_idx - window_size:]
+
+    train_X = create_sliding_windows(train_raw, window_size).permute(0,2,1)
+    test_X = create_sliding_windows(test_raw, window_size).permute(0,2,1)
+
+    train_y = y[:split_idx-window_size+1]
+    test_y = y[split_idx - window_size+1:]
+
     # X = create_sliding_windows(X, window_size).permute(0,2,1) #permute spaghetti here so the cnn can take it in
     # y = torch.randint(0, 2, (363 - window_size + 1, 1)).float()  # binary labels as floats
 
-    X_np, y_np, feature_names = generate_features(k=15)
-    X_tensor = torch.from_numpy(X_np)
-    y_tensor = torch.from_numpy(y_np)
-
-    X = create_sliding_windows(X_tensor, window_size).permute(0, 2, 1)
-    y = y_tensor[window_size - 1:]
-
-
     # Create DataLoader
     full_dataset = TensorDataset(X, y)
+    print(train_X.shape, train_y.shape)
 
+    full_dataset = TensorDataset(train_X,train_y)
     # holdout, since kfold doesn't work here
     holdout_size = int(0.2 * len(full_dataset)) # test holdout
     train_size = len(full_dataset) - holdout_size
 
     train_dataset, test_dataset = random_split(full_dataset, [train_size, holdout_size])
     
+    #TMP
+    # train_dataset = train_X
+
     # loaders
     BATCH_SIZE = 3
     # drop last because if not perfect divisibility improperly mismatched sample split will result in crash
@@ -153,7 +162,7 @@ if __name__ == "__main__":
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, drop_last= True)
     test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=True, drop_last=True)
 
-    # Training loop
+    # Training loop: 50 - 100
     for epoch in range(20):
         model.train()
         for batch_X, batch_y in train_loader:
