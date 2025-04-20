@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset, random_split
+from feature_gen import generate_features
 
 class CNNLSTM(nn.Module):
     def __init__(self, in_channels = 26):
@@ -106,25 +107,35 @@ if __name__ == "__main__":
 
     # print(cnnlstm.state_dict())
 
-    from torchsummary import summary
-    summary(cnnlstm, (26, 100))
+    # from torchsummary import summary
+    # summary(cnnlstm, (26, 100))
 
     # input("Ready to train")
 
     # TRAINING BOILERPLATE BELOW
-    model = CNNLSTM(in_channels=26)
+    # model = CNNLSTM(in_channels=26)
+    model = CNNLSTM(in_channels=15)  # 15 features, 100 timesteps
+
 
     criterion = nn.BCELoss()  # binary cross-entropy
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
     # Must be T (lag timesteps) >= 66 for some reason 
     # X = torch.randn(16, 26, 100)         # (B, C, T) format for Conv1D
-    X = torch.randn(363, 26)
+    # X = torch.randn(363, 26)
     window_size = 100
     # WE ARE AT RISK OF LEAKAGE HERE B/T TRAIN TEST. TODO: FIGURE OUT WTF TO DO BC ADDING A GAP DOES NOT SEEM OPTIMAL
     # TimeSeriesSplit? https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.TimeSeriesSplit.html
-    X = create_sliding_windows(X, window_size).permute(0,2,1) #permute spaghetti here so the cnn can take it in
-    y = torch.randint(0, 2, (363 - window_size + 1, 1)).float()  # binary labels as floats
+    # X = create_sliding_windows(X, window_size).permute(0,2,1) #permute spaghetti here so the cnn can take it in
+    # y = torch.randint(0, 2, (363 - window_size + 1, 1)).float()  # binary labels as floats
+
+    X_np, y_np, feature_names = generate_features(k=15)
+    X_tensor = torch.from_numpy(X_np)
+    y_tensor = torch.from_numpy(y_np)
+
+    X = create_sliding_windows(X_tensor, window_size).permute(0, 2, 1)
+    y = y_tensor[window_size - 1:]
+
 
     # Create DataLoader
     full_dataset = TensorDataset(X, y)

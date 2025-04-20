@@ -34,7 +34,6 @@ class BuyLowSellHigh(Strategy):
         self.clf = None # TODO: replace with actual classifier
 
 
-
 if __name__ == "__main__":
     # backtest
     # bt = backtest()
