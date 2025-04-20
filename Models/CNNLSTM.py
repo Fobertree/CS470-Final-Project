@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset, random_split
+import matplotlib.pyplot as plt
+from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score, roc_curve
 from feature_gen import generate_features
 
 class CNNLSTM(nn.Module):
@@ -100,6 +102,9 @@ def create_sliding_windows(X, window_size):
     return torch.stack(sequences)
 
 if __name__ == "__main__":
+    train_losses = []
+    test_losses = []
+    accuracies = []
     cnnlstm = CNNLSTM()
     
     # for name, param in cnnlstm.named_parameters():
@@ -147,18 +152,12 @@ if __name__ == "__main__":
     # y = torch.randint(0, 2, (363 - window_size + 1, 1)).float()  # binary labels as floats
 
     # Create DataLoader
-    full_dataset = TensorDataset(X, y)
-    print(train_X.shape, train_y.shape)
-
     full_dataset = TensorDataset(train_X,train_y)
     # holdout, since kfold doesn't work here
     holdout_size = int(0.2 * len(full_dataset)) # test holdout
     train_size = len(full_dataset) - holdout_size
 
     train_dataset, test_dataset = random_split(full_dataset, [train_size, holdout_size])
-    
-    #TMP
-    # train_dataset = train_X
 
     # loaders
     BATCH_SIZE = 3
@@ -170,17 +169,52 @@ if __name__ == "__main__":
     # Training loop: 50 - 100
     for epoch in range(20):
         model.train()
+        running_loss = 0
         for batch_X, batch_y in train_loader:
-            # Forward pass
-            output = model(batch_X).squeeze(1)  # shape: (batch,)
+            output = model(batch_X).squeeze(1)
             loss = criterion(output, batch_y.squeeze(1))
 
-            # Backward pass
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-        print(f"Epoch {epoch+1}, Loss: {loss.item():.4f}")
+            running_loss += loss.item()
+
+        train_losses.append(running_loss / len(train_loader))
+
+        # Evaluation phase
+        model.eval()
+        test_loss = 0
+        correct = 0
+        total = 0
+
+        all_preds = []
+        all_targets = []
+        all_probs = []
+
+        with torch.no_grad():
+            for batch_X, batch_y in test_loader:
+                output = model(batch_X).squeeze(1)
+                loss = criterion(output, batch_y.squeeze(1))
+                test_loss += loss.item()
+
+                probs = output
+                preds = (probs >= 0.5).float()
+
+                all_probs.extend(probs.cpu().numpy())
+                all_preds.extend(preds.cpu().numpy())
+                all_targets.extend(batch_y.squeeze(1).cpu().numpy())
+
+                correct += (preds == batch_y.squeeze(1)).sum().item()
+                total += batch_y.size(0)
+
+        avg_test_loss = test_loss / len(test_loader)
+        accuracy = correct / total
+
+        test_losses.append(avg_test_loss)
+        accuracies.append(accuracy)
+
+        print(f"Epoch {epoch+1}, Train Loss: {train_losses[-1]:.4f}, Test Loss: {avg_test_loss:.4f}, Accuracy: {accuracy:.2%}")
     
     # Test loop
 
@@ -207,4 +241,52 @@ if __name__ == "__main__":
     avg_test_loss = test_loss / len(test_loader)
     accuracy = correct / total
 
+    precision = precision_score(all_targets, all_preds)
+    recall = recall_score(all_targets, all_preds)
+    f1 = f1_score(all_targets, all_preds)
+    auroc = roc_auc_score(all_targets, all_probs)
+
+    print(f"\nEvaluation Metrics:")
     print(f"Test Loss: {avg_test_loss:.4f}, Accuracy: {accuracy:.2%}")
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall: {recall:.4f}")
+    print(f"F1 Score: {f1:.4f}")
+    print(f"AUROC: {auroc:.4f}")
+
+    epochs = range(1, len(train_losses)+1)
+
+    plt.figure(figsize=(12, 5))
+
+    # Loss plot
+    plt.subplot(1, 2, 1)
+    plt.plot(epochs, train_losses, label="Train Loss")
+    plt.plot(epochs, test_losses, label="Test Loss")
+    plt.title("Loss Over Epochs")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.legend()
+
+    # Accuracy plot
+    plt.subplot(1, 2, 2)
+    plt.plot(epochs, accuracies, label="Accuracy")
+    plt.title("Accuracy Over Epochs")
+    plt.xlabel("Epoch")
+    plt.ylabel("Accuracy")
+    plt.ylim(0, 1)
+    plt.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+    input("OK")
+
+    fpr, tpr, _ = roc_curve(all_targets, all_probs)
+
+    plt.figure()
+    plt.plot(fpr, tpr, label=f'AUROC = {auroc:.2f}')
+    plt.plot([0, 1], [0, 1], linestyle='--', color='gray')
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title("ROC Curve")
+    plt.legend()
+    plt.show()
